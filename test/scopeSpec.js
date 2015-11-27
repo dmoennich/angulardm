@@ -88,11 +88,70 @@ describe("Scope", function () {
 			scope.$digest();
 
 			expect(listenerFn).toHaveBeenCalledWith(myObj, myObj, scope);
+		});
+
+
+		it("should call the watch function, also when no listener fn provided", function () {
+
+			var watchFn = jasmine.createSpy();
+
+			scope.$watch(watchFn);
+			scope.$digest();
+
+			expect(watchFn).toHaveBeenCalled();
+		});
+
+
+		it("triggers chained watchers in the same digest", function() {
+			scope.name = 'Jane';
+			scope.$watch(
+					function(scope) { return scope.nameUpper; },
+					function(newValue, oldValue, scope) {
+						if (newValue) {
+							scope.initial = newValue.substring(0, 1) + '.';
+						}
+					}
+			);
+			scope.$watch(
+					function(scope) { return scope.name; },
+					function(newValue, oldValue, scope) {
+						if (newValue) {
+							scope.nameUpper = newValue.toUpperCase();
+						}
+					}
+			);
+			scope.$digest();
+			expect(scope.initial).toBe('J.');
+			scope.name = 'Bob';
+			scope.$digest();
+			expect(scope.initial).toBe('B.');
+		});
+
+
+		it("should throw an exception after 10 digest loops", function () {
+
+			var watchFn1 = function (scope) {
+					return scope.counterA;
+				},
+				listenerFn1 = function (newVal, oldVal, scope) {
+					scope.counterB += 1;
+				},
+				watchFn2 = function (scope) {
+					return scope.counterB;
+				},
+				listenerFn2 = function (newVal, oldVal, scope) {
+					scope.counterA += 1;
+				};
+
+			scope.$watch(watchFn1, listenerFn1);
+			scope.$watch(watchFn2, listenerFn2);
+			expect(function () {scope.$digest();}).toThrow();
 
 
 		});
 
-		// CURRENT CHAPTER: Getting Notified Of Digests
+
+		// Short-Circuiting The Digest When The Last Watch Is Clean
 
 
 	});
