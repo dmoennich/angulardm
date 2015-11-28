@@ -1,6 +1,9 @@
 /**
  * Created by daniel on 26.11.15.
  */
+var _ = require("../node_modules/lodash/index"),
+	Scope = require("../src/scope");
+
 
 describe("Scope", function () {
 
@@ -130,6 +133,9 @@ describe("Scope", function () {
 
 		it("should throw an exception after 10 digest loops", function () {
 
+			scope.counterA = 0;
+			scope.counterB = 0;
+
 			var watchFn1 = function (scope) {
 					return scope.counterA;
 				},
@@ -147,14 +153,125 @@ describe("Scope", function () {
 			scope.$watch(watchFn2, listenerFn2);
 			expect(function () {scope.$digest();}).toThrow();
 
-
 		});
 
 
-		// Short-Circuiting The Digest When The Last Watch Is Clean
+		it("ends the digest when the last watch is clean", function() {
+			var watchExecutions = 0,
+				i;
+
+			scope.numArr = [];
+			for (i = 0; i < 100; i++) {
+				scope.numArr[i] = i;
+			}
+
+			scope.numArr.forEach(function (num) {
+				scope.$watch(function (scope) {
+					watchExecutions += 1;
+					return scope.numArr[num];
+				}, function () {});
+			});
+
+			scope.$digest();
+			expect(watchExecutions).toBe(200);
+			scope.numArr[0] = 420;
+			scope.$digest();
+			expect(watchExecutions).toBe(301);
+		});
+
+		it("does not end digest so that new watches are not run", function() {
+			scope.aValue = 'abc';
+			scope.counter = 0;
+			scope.$watch(
+					function(scope) { return scope.aValue; },
+					function(newValue, oldValue, scope) {
+						scope.$watch(
+								function(scope) { return scope.aValue; },
+								function(newValue, oldValue, scope) {
+									scope.counter++;
+								}
+						);
+					}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
 
 
-	});
+		it("compares based on value if enabled", function() {
+			scope.aValue = [1, 2, 3];
+			scope.counter = 0;
+			scope.$watch(
+					function(scope) { return scope.aValue; },
+					function(newValue, oldValue, scope) {
+						scope.counter++;
+					},
+					true
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+			scope.aValue.push(4);
+			scope.$digest();
+			expect(scope.counter).toBe(2);
+		});
+
+
+		it("correctly handles NaNs", function() {
+			scope.number = 0/0; // NaN
+			scope.counter = 0;
+			scope.$watch(
+					function(scope) { return scope.number; },
+					function(newValue, oldValue, scope) {
+						scope.counter++;
+					}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+		});
+
+
+		it("executes $eval'ed function and returns result", function() {
+			scope.aValue = 42;
+			var result = scope.$eval(function(scope) {
+				return scope.aValue;
+			});
+			expect(result).toBe(42);
+		});
+		it("passes the second $eval argument straight through", function() {
+			scope.aValue = 42;
+			var result = scope.$eval(function(scope, arg) {
+				return scope.aValue + arg;
+			}, 2);
+			expect(result).toBe(44);
+		});
+
+
+		it("executes $apply'ed function and starts the digest", function() {
+			scope.aValue = 'someValue';
+			scope.counter = 0;
+			scope.$watch(
+					function(scope) {
+						return scope.aValue;
+					},
+					function(newValue, oldValue, scope) {
+						scope.counter++;
+					}
+			);
+			scope.$digest();
+			expect(scope.counter).toBe(1);
+			scope.$apply(function(scope) {
+				scope.aValue = 'someOtherValue';
+			});
+			expect(scope.counter).toBe(2);
+		});
+
+
+		//next: $evalAsync - Deferred Execution
+
+
+	}); // end describe digest
 
 
 });
