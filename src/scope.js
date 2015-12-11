@@ -28,7 +28,7 @@ Scope.prototype.$watch = function (watchFn, listenerFn, valueEq) {
 
 Scope.prototype.$digest = function () {
 	var dirty = false,
-		digestCount = 0;
+		maxDigestCount = 10;
 	this.$$lastDirtyWatch = null;
 	do {
 		while (this.$$asyncQueue.length) {
@@ -36,11 +36,11 @@ Scope.prototype.$digest = function () {
 			asyncTask.scope.$eval(asyncTask.expression);
 		}
 		dirty = this.$$digestOnce();
-		digestCount += 1;
-		if (dirty && digestCount >= 10) {
+		maxDigestCount -= 1;
+		if ((dirty || this.$$asyncQueue.length) && !maxDigestCount) {
 			throw Error("10 digest loops reached!");
 		}
-	} while(dirty && digestCount);
+	} while (dirty || this.$$asyncQueue.length);
 };
 
 Scope.prototype.$$areEqual = function (newVal, oldVal, valueEq) {
