@@ -1,8 +1,7 @@
 /**
  * Created by daniel on 26.11.15.
  */
-var _ = require("../node_modules/lodash/index"),
-	Scope = require("../src/scope");
+var Scope = require("../src/scope");
 
 
 describe("Scope", function () {
@@ -24,7 +23,7 @@ describe("Scope", function () {
 
 		it("should call the listener function of a watch on $digest", function () {
 
-			var listenerFn = jasmine.createSpy(),
+			var listenerFn = jasmine.createSpy("listenerFn"),
 				watchFn = function () {
 					return 1;
 				};
@@ -37,7 +36,7 @@ describe("Scope", function () {
 
 		it("should call the watch function with the scope as an argument", function () {
 
-			var watchFn = jasmine.createSpy();
+			var watchFn = jasmine.createSpy("watchFn");
 			scope.$watch(watchFn, function() {});
 
 			scope.$digest();
@@ -51,7 +50,7 @@ describe("Scope", function () {
 			var watchFn = function (scope) {
 					return scope.myVal;
 				},
-			listenerFn = jasmine.createSpy();
+			listenerFn = jasmine.createSpy("listenerFn");
 
 			scope.$watch(watchFn, listenerFn);
 			scope.$digest();
@@ -68,7 +67,7 @@ describe("Scope", function () {
 		it("should call listener if first return value of watch is undefined", function () {
 
 			var watchFn = function () {},
-				listenerFn = jasmine.createSpy();
+				listenerFn = jasmine.createSpy("listenerFn");
 
 			scope.$watch(watchFn, listenerFn);
 			scope.$digest();
@@ -82,7 +81,7 @@ describe("Scope", function () {
 		it("should call listener with newValue as oldValue the first time", function () {
 
 			var myObj = {val: 5},
-				listenerFn = jasmine.createSpy(),
+				listenerFn = jasmine.createSpy("listenerFn"),
 				watchFn = function () {
 					return myObj;
 				};
@@ -96,7 +95,7 @@ describe("Scope", function () {
 
 		it("should call the watch function, also when no listener fn provided", function () {
 
-			var watchFn = jasmine.createSpy();
+			var watchFn = jasmine.createSpy("watchFn");
 
 			scope.$watch(watchFn);
 			scope.$digest();
@@ -268,7 +267,29 @@ describe("Scope", function () {
 		});
 
 
-		//next: $evalAsync - Deferred Execution
+		it("executes provided function to $evalAsync later in the same digest run", function () {
+			scope.val = "init val";
+			scope.asyncEvaluatedImmediately = false;
+			scope.asyncEvaluated = false;
+			var watcherFn = function (scope) {
+					return scope.val;
+				},
+				listenerFn = function (newVal, oldVal, scope) {
+					var asyncFn = function (scope) {
+						scope.asyncEvaluated = true;
+					};
+					scope.$evalAsync(asyncFn);
+					scope.asyncEvaluatedImmediately = scope.asyncEvaluated;
+				};
+
+			scope.$watch(watcherFn, listenerFn);
+
+			scope.val = "changed val";
+			scope.$digest();
+			expect(scope.asyncEvaluated).toBe(true);
+			expect(scope.asyncEvaluatedImmediately).toBe(false);
+
+		});
 
 
 	}); // end describe digest

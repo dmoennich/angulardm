@@ -7,6 +7,7 @@ var _ = require("../node_modules/lodash");
 var Scope = function () {
 	this.$$watchers = [];
 	this.$$lastDirtyWatch = null;
+	this.$$asyncQueue = [];
 };
 module.exports = Scope;
 
@@ -30,6 +31,10 @@ Scope.prototype.$digest = function () {
 		digestCount = 0;
 	this.$$lastDirtyWatch = null;
 	do {
+		while (this.$$asyncQueue.length) {
+			var asyncTask = this.$$asyncQueue.shift();
+			asyncTask.scope.$eval(asyncTask.expression);
+		}
 		dirty = this.$$digestOnce();
 		digestCount += 1;
 		if (dirty && digestCount >= 10) {
@@ -78,4 +83,8 @@ Scope.prototype.$apply = function (expression) {
 	} finally {
 		this.$digest();
 	}
+};
+
+Scope.prototype.$evalAsync = function (expr) {
+	this.$$asyncQueue.push({scope: this, expression: expr});
 };
