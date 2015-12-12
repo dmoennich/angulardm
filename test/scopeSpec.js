@@ -343,6 +343,53 @@ describe("Scope", function () {
 		});
 
 
+		it("has a $$phase property that holds the name of the current digest phase", function () {
+
+			scope.val = "some val";
+			var $$phaseInWatchFn, $$phaseInListenerFn, $$phaseInApplyFn;
+
+			scope.$watch(function (scope) {
+				$$phaseInWatchFn = scope.$$phase;
+				return scope.val;
+			}, function (newVal, oldVal, scope) {
+				$$phaseInListenerFn = scope.$$phase;
+			});
+
+			scope.$apply(function (scope) {
+				$$phaseInApplyFn = scope.$$phase;
+			});
+
+			expect($$phaseInWatchFn).toEqual("$digest");
+			expect($$phaseInListenerFn).toEqual("$digest");
+			expect($$phaseInApplyFn).toEqual("$apply");
+			expect(scope.$$phase).toBe(null);
+
+		});
+
+
+		it("schedules a digest in $evalAsync", function (done) {
+
+			var counter = 0;
+
+			scope.$watch(function () {
+				return "some val";
+			}, function () {
+				counter += 1;
+			});
+
+
+			scope.$evalAsync(function () {
+			});
+
+			expect(counter).toBe(0);
+
+			setTimeout(function () {
+				expect(counter).toBe(1);
+				done();
+			}, 50);
+
+		});
+
 
 
 	}); // end describe digest
