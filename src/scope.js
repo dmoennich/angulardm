@@ -8,6 +8,8 @@ var Scope = function () {
 	this.$$watchers = [];
 	this.$$lastDirtyWatch = null;
 	this.$$asyncQueue = [];
+	this.$$applyAsyncQueue = [];
+	this.$$applyAsyncId = null;
 	this.$$phase = null;
 };
 module.exports = Scope;
@@ -32,6 +34,12 @@ Scope.prototype.$digest = function () {
 	var dirty = false,
 		maxDigestCount = 10;
 	this.$$lastDirtyWatch = null;
+
+	if (this.$$applyAsyncId !== null) {
+		clearTimeout(this.$$applyAsyncId);
+		this.$$flushApplyAsync();
+	}
+
 	do {
 		while (this.$$asyncQueue.length) {
 			var asyncTask = this.$$asyncQueue.shift();
@@ -114,5 +122,42 @@ Scope.prototype.$beginPhase = function (phase) {
 Scope.prototype.$clearPhase = function () {
 	this.$$phase = null;
 };
+
+/**
+ * Use case: instead of calling $apply multiple times within a short time
+ * and trigger for each call a digest phase, call $applyAsync multiple times
+ * followed by only one digest phase.
+ */
+Scope.prototype.$applyAsync = function (expr) {
+
+	var theScope = this;
+
+	this.$$applyAsyncQueue.push(function () {
+		theScope.$eval(expr);
+	});
+
+	if (this.$$applyAsyncId === null) {
+		this.$$applyAsyncId = setTimeout(function () {
+			var boundFlush = theScope.$$flushApplyAsync.bind(theScope);
+			theScope.$apply(boundFlush);
+		}, 0)
+	}
+
+};
+
+
+Scope.prototype.$$flushApplyAsync = function () {
+	while(this.$$applyAsyncQueue.length) {
+		this.$$applyAsyncQueue.shift()();
+	}
+	this.$$applyAsyncId = null;
+};
+
+
+
+
+
+
+
 
 
